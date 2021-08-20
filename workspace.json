@@ -1,6 +1,8 @@
 {
   "version": 2,
-  "projects": {},
+  "projects": {
+    "stripe": "packages/stripe"
+  },
   "cli": {
     "defaultCollection": "@nrwl/workspace"
   }
