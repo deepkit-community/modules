@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@nrwl/cli": "12.7.2",
+    "@nrwl/node": "^12.7.2",
     "@nrwl/nx-cloud": "latest",
     "@nrwl/tao": "12.7.2",
     "@nrwl/workspace": "12.7.2",
