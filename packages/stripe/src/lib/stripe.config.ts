@@ -1,4 +1,4 @@
-import { AppModuleConfig } from '@deepkit/app';
+import { AppModuleConfig, createModuleConfig } from '@deepkit/app';
 import { t } from '@deepkit/type';
 
 export const webhookConfigSchema = t.type({
@@ -17,11 +17,7 @@ export const webhookConfigSchema = t.type({
     ),
 });
 
-export const stripeModuleConfig = new AppModuleConfig({
-  apiKey: t.string.required,
+export const stripeModuleConfig = createModuleConfig({
+  apiKey: t.string,
   webhookConfig: webhookConfigSchema.optional,
 });
-
-export class WebhookConfig extends stripeModuleConfig.slice([
-  'webhookConfig',
-]) {}

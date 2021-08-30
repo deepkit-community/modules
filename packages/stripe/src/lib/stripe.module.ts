@@ -1,23 +1,23 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { AppModule } from '@deepkit/app';
+import { AppModule, createModule } from '@deepkit/app';
 import Stripe from 'stripe';
 import { http, HttpRequest } from '@deepkit/http';
-import { inject } from '@deepkit/injector';
 import { StripeWebhookService } from './stripe.webhook.service';
-import { stripeModuleConfig, WebhookConfig } from './stripe.config';
+import { stripeModuleConfig } from './stripe.config';
+import { ClassType } from '@deepkit/core';
+import { stripeHandlerMap } from './stripe.decorators';
 
-const makeController = (prefix: string, route: string) => {
+const makeController = (prefix: string, route: string, secret: string) => {
   @http.controller(prefix)
   class Controller {
     constructor(
       private readonly webhookService: StripeWebhookService,
-      @inject('Stripe') private readonly stripe: Stripe,
-      private readonly webhookConfig: WebhookConfig
+      private readonly stripe: Stripe,
     ) {}
 
     @http.POST(route)
     public async handleEvent(request: HttpRequest) {
-      const sig = request.headers['stripe-signature'];
+      const sig = String(request.headers['stripe-signature']);
       const buffers = [];
 
       for await (const chunk of request) {
@@ -28,8 +28,8 @@ const makeController = (prefix: string, route: string) => {
 
       const event = this.stripe.webhooks.constructEvent(
         bodyBuffer,
-        sig as any,
-        this.webhookConfig.webhookConfig!.secret
+        sig,
+        secret
       );
 
       return this.webhookService.handleEvent(event);
@@ -39,34 +39,49 @@ const makeController = (prefix: string, route: string) => {
   return Controller;
 };
 
-export const stripeModule = new AppModule(
+export class StripeModule extends createModule(
   {
     config: stripeModuleConfig,
-    providers: [
-      {
-        provide: 'Stripe',
-        deps: [stripeModuleConfig.all()],
-        useFactory: (config: typeof stripeModuleConfig.type) => {
-          const { apiKey } = config;
-          return new Stripe(apiKey, {
-            typescript: true,
-            apiVersion: '2020-08-27',
-          });
-        },
-      },
-    ],
-    exports: ['Stripe'],
+    exports: [Stripe],
   },
   'stripe'
-).setup((stripeModule, config) => {
-  if (config.webhookConfig) {
-    const webhookConfig = config.webhookConfig!;
-    stripeModule.addProvider(StripeWebhookService);
-    stripeModule.addController(
-      makeController(
-        webhookConfig.controllerRoutePrefix!,
-        webhookConfig.controllerRoute!
-      )
-    );
+) {
+
+  process() {
+    this.addProvider({
+      provide: Stripe,
+      useFactory: () => {
+        return new Stripe(this.config.apiKey, {
+          typescript: true,
+          apiVersion: '2020-08-27',
+        });
+      },
+    });
+
+    if (this.config.webhookConfig) {
+      this.addProvider(StripeWebhookService);
+      this.addController(
+        makeController(
+          this.config.webhookConfig.controllerRoutePrefix,
+          this.config.webhookConfig.controllerRoute,
+          this.config.webhookConfig.secret
+        )
+      );
+    }
   }
-});
+
+  processController(module: AppModule<any>, controller: ClassType) {
+    if (!this.config.webhookConfig) return;
+
+    const configs = stripeHandlerMap.get(controller);
+    if (!configs) return;
+
+    if (!module.isProvided(controller)) module.addProvider(controller);
+
+    for (const config of configs) {
+      this.setupProvider(StripeWebhookService).register(
+        config.eventType, module, controller, config.property
+      );
+    }
+  }
+}
