@@ -2,17 +2,17 @@ import Stripe from 'stripe';
 import { ClassType } from '@deepkit/core';
 
 interface StripeWebhookHandlerConfig {
-  injectableService: ClassType;
-  handlerProperty: string | symbol;
+  eventType: Stripe.WebhookEndpointCreateParams.EnabledEvent;
+  property: string | symbol;
 }
 
-export const stripeHandlerMap = new Map<string, StripeWebhookHandlerConfig>();
+export const stripeHandlerMap = new Map<ClassType, StripeWebhookHandlerConfig[]>();
 
 export const StripeWebhookHandler: (
   eventType: Stripe.WebhookEndpointCreateParams.EnabledEvent
 ) => MethodDecorator = (eventType) => (target, property) => {
-  stripeHandlerMap.set(eventType, {
-    injectableService: target.constructor as ClassType,
-    handlerProperty: property,
-  });
+  const classType = target.constructor as ClassType;
+  let configs = stripeHandlerMap.get(classType);
+  if (!configs) stripeHandlerMap.set(classType, configs = []);
+  configs.push({ eventType, property });
 };

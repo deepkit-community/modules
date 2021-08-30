@@ -10,13 +10,13 @@ Interacting with the Stripe API or consuming Stripe webhooks in your Deepkit app
 
 ## Features
 
-- 💉 Injectable Stripe client for interacting with the Stripe API in Controllers and Providers
+- 💉 Injectable Stripe client for interacting with the Stripe API in Controllers
 
 - 🎉 Optionally exposes an API endpoint from your Deepkit application at to be used for webhook event processing from Stripe. Defaults to `/stripe/webhook/` but can be easily configured
 
 - 🔒 Automatically validates that the event payload was actually sent from Stripe using the configured webhook signing secret
 
-- 🕵️ Discovers providers from your application decorated with `StripeWebhookHandler` and routes incoming events to them
+- 🕵️ Discovers controllers from your application decorated with `StripeWebhookHandler` and routes incoming events to them
 
 - 🧭 Route events to logical services easily simply by providing the Stripe webhook event type
 
@@ -39,17 +39,19 @@ Interacting with the Stripe API or consuming Stripe webhooks in your Deepkit app
 Import and add `stripeModule` to the `imports` section of the consuming module. Your Stripe API key is required, and you can optionally include a webhook configuration if you plan on consuming Stripe webhook events inside your app.
 
 ```typescript
-import { stripeModule } from '@deepkit-community/stripe';
+import { App } from '@deepkit/app';
+import { FrameworkModule } from '@deepkit/framework';
+import { StripeModule } from '@deepkit-community/stripe';
 
-Application.create({
+new App({
   imports: [
-    stripeModule.configure({
+    new StripeModule({
       apiKey: 'test',
       webhookConfig: {
         secret: STRIPE_SECRET,
       },
     }),
-    ApiConsoleModule,
+    new FrameworkModule
   ],
 });
 ```
@@ -60,12 +62,12 @@ Configuration can be provided inline as seen in the example above or using ENV v
 
 ### Injectable Providers
 
-The module exposes an injectable Stripe instance that is pre-configured with your API Key based on module configuration. To inject it, use the `'Stripe'` injection token:
+The module exposes an injectable Stripe instance that is pre-configured with your API Key based on module configuration. To inject it, use the `Stripe` injection token:
 
 ```typescript
-@injectable()
+@injectable
 class MyService {
-  constructor(@inject('Stripe') private readonly stripe: Stripe) {}
+  constructor(private readonly stripe: Stripe) {}
 }
 ```
 
@@ -82,13 +84,25 @@ Exposing provider/service methods to be used for processing Stripe events is eas
 [Review the Stripe documentation](https://stripe.com/docs/api/events/types) for more information about the types of events available.
 
 ```typescript
-@injectable()
-class PaymentCreatedService {
+class PaymentCreatedController {
   @StripeWebhookHandler('payment_intent.created')
   handlePaymentIntentCreated(evt: StripeEvent) {
     // execute your custom business logic
   }
 }
+
+new App({
+  controller: [PaymentCreatedController],
+  imports: [
+    new StripeModule({
+      apiKey: 'test',
+      webhookConfig: {
+        secret: STRIPE_SECRET,
+      },
+    }),
+    new FrameworkModule
+  ]
+}).run();
 ```
 
 ### Configure Webhooks in the Stripe Dashboard

@@ -1,22 +1,23 @@
-import { stripeModule } from './stripe.module';
+import { StripeModule } from './stripe.module';
 import { StripeWebhookHandler } from './stripe.decorators';
-import { AppModule, CommandApplication } from '@deepkit/app';
+import { App } from '@deepkit/app';
 import Stripe from 'stripe';
-import { HttpKernel, Router, HttpRequest } from '@deepkit/http';
-import { Application } from '@deepkit/framework';
+import { HttpKernel, HttpModule, HttpRequest, Router } from '@deepkit/http';
 import { injectable } from '@deepkit/injector';
 
 const STRIPE_SECRET = 'whsec_test_secret';
 const ACCOUNT_CREATED = 'account.external_account.created';
 const ACCOUNT_DELETED = 'account.external_account.deleted';
 
+Error.stackTraceLimit = 100;
+
 describe('Stripe Module', () => {
   it('provides an injectable stripe instance', () => {
-    const app = new CommandApplication(
-      new AppModule({ imports: [stripeModule.configure({ apiKey: 'test' })] })
-    );
+    const app = new App({
+      imports: [new StripeModule({ apiKey: 'test' })]
+    });
 
-    const stripe = app.get<string, Stripe>('Stripe');
+    const stripe = app.get(Stripe);
     expect(stripe).toBeDefined();
     expect(stripe).toBeInstanceOf(Stripe);
   });
@@ -25,16 +26,14 @@ describe('Stripe Module', () => {
     const defaultConfig = {
       apiKey: 'test',
       webhookConfig: {
-        secret: '123',
-      },
+        secret: '123'
+      }
     };
 
     it('adds a controller with default routes', async () => {
-      const app = new Application(
-        new AppModule({
-          imports: [stripeModule.configure(defaultConfig)],
-        })
-      );
+      const app = new App({
+        imports: [new StripeModule(defaultConfig), new HttpModule()],
+      });
 
       const router = app.get(Router);
 
@@ -42,20 +41,19 @@ describe('Stripe Module', () => {
     });
 
     it('adds a controller with user provided routes', async () => {
-      const app = new Application(
-        new AppModule({
-          imports: [
-            stripeModule.configure({
-              apiKey: 'test',
-              webhookConfig: {
-                secret: '123',
-                controllerRoutePrefix: 'custom-prefix',
-                controllerRoute: 'custom-route',
-              },
-            }),
-          ],
-        })
-      );
+      const app = new App({
+        imports: [
+          new StripeModule({
+            apiKey: 'test',
+            webhookConfig: {
+              secret: '123',
+              controllerRoutePrefix: 'custom-prefix',
+              controllerRoute: 'custom-route'
+            }
+          }),
+          new HttpModule()
+        ]
+      });
 
       const router = app.get(Router);
 
@@ -65,7 +63,7 @@ describe('Stripe Module', () => {
     });
 
     describe('webhook payload handling', () => {
-      @injectable()
+      @injectable
       class ExampleWebhookHandler {
         @StripeWebhookHandler(ACCOUNT_CREATED)
         handle() {
@@ -73,34 +71,33 @@ describe('Stripe Module', () => {
         }
       }
 
-      let app: Application<any>;
+      let app: App<any>;
       let httpHandler: HttpKernel;
       let stripe: Stripe;
 
       beforeAll(() => {
-        app = new Application(
-          new AppModule({
-            providers: [ExampleWebhookHandler],
-            imports: [
-              stripeModule.configure({
-                apiKey: 'test',
-                webhookConfig: {
-                  secret: STRIPE_SECRET,
-                },
-              }),
-            ],
-          })
-        );
+        app = new App({
+          controllers: [ExampleWebhookHandler],
+          imports: [
+            new StripeModule({
+              apiKey: 'test',
+              webhookConfig: {
+                secret: STRIPE_SECRET
+              }
+            }),
+            new HttpModule()
+          ]
+        });
 
         httpHandler = app.get(HttpKernel);
-        stripe = app.get<string, Stripe>('Stripe');
+        stripe = app.get(Stripe);
       });
 
       it('validates payloads and passes incoming events to the service if a handler is registered', async () => {
         const payload = {
           id: 'evt_test_webhook',
           object: 'event',
-          type: ACCOUNT_CREATED,
+          type: ACCOUNT_CREATED
         };
 
         const payloadString = JSON.stringify(payload, null, 2);
@@ -112,7 +109,7 @@ describe('Stripe Module', () => {
               'stripe-signature',
               stripe.webhooks.generateTestHeaderString({
                 payload: payloadString,
-                secret: STRIPE_SECRET,
+                secret: STRIPE_SECRET
               })
             )
         );
@@ -124,7 +121,7 @@ describe('Stripe Module', () => {
         const payload = {
           id: 'evt_test_webhook',
           object: 'event',
-          type: ACCOUNT_DELETED,
+          type: ACCOUNT_DELETED
         };
 
         const payloadString = JSON.stringify(payload, null, 2);
@@ -136,7 +133,7 @@ describe('Stripe Module', () => {
               'stripe-signature',
               stripe.webhooks.generateTestHeaderString({
                 payload: payloadString,
-                secret: 'whsec_test_secret',
+                secret: 'whsec_test_secret'
               })
             )
         );
