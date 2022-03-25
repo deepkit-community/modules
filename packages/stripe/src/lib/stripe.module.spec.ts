@@ -3,7 +3,6 @@ import { StripeWebhookHandler } from './stripe.decorators';
 import { App } from '@deepkit/app';
 import Stripe from 'stripe';
 import { HttpKernel, HttpModule, HttpRequest, Router } from '@deepkit/http';
-import { injectable } from '@deepkit/injector';
 
 const STRIPE_SECRET = 'whsec_test_secret';
 const ACCOUNT_CREATED = 'account.external_account.created';
@@ -63,7 +62,6 @@ describe('Stripe Module', () => {
     });
 
     describe('webhook payload handling', () => {
-      @injectable
       class ExampleWebhookHandler {
         @StripeWebhookHandler(ACCOUNT_CREATED)
         handle() {

@@ -3,7 +3,7 @@ import { AppModule, createModule } from '@deepkit/app';
 import Stripe from 'stripe';
 import { http, HttpRequest } from '@deepkit/http';
 import { StripeWebhookService } from './stripe.webhook.service';
-import { stripeModuleConfig } from './stripe.config';
+import { StripeConfig } from './stripe.config';
 import { ClassType } from '@deepkit/core';
 import { stripeHandlerMap } from './stripe.decorators';
 
@@ -41,7 +41,7 @@ const makeController = (prefix: string, route: string, secret: string) => {
 
 export class StripeModule extends createModule(
   {
-    config: stripeModuleConfig,
+    config: StripeConfig,
     exports: [Stripe],
   },
   'stripe'
@@ -79,7 +79,7 @@ export class StripeModule extends createModule(
     if (!module.isProvided(controller)) module.addProvider(controller);
 
     for (const config of configs) {
-      this.setupProvider(StripeWebhookService).register(
+      this.setupProvider<StripeWebhookService>().register(
         config.eventType, module, controller, config.property
       );
     }
