@@ -1,5 +1,5 @@
 import { HttpNotFoundError } from '@deepkit/http';
-import { injectable, InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@deepkit/injector';
 import { ClassType } from '@deepkit/core';
 import { AppModule } from '@deepkit/app';
 import Stripe from 'stripe';
@@ -10,7 +10,6 @@ interface RegistryEntry {
   property: string | symbol;
 }
 
-@injectable
 export class StripeWebhookService {
   protected registry = new Map<Stripe.WebhookEndpointCreateParams.EnabledEvent, RegistryEntry>();
 
